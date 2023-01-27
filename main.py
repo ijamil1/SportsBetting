@@ -2,16 +2,10 @@ import requests
 import pymysql
 import datetime 
 
-free_api_key = 'c7a9fea03571e4119838f7d7091cf679'
-base_url = 'https://api.the-odds-api.com/v4/sports/'
-dbinstance_endpoint = 'database.cl4b0hojqcsj.us-east-1.rds.amazonaws.com'
-db_username = 'admin'
-db_pw = 'pinnacle'
-db_name = 'bets'
 
 class APIinterface():
 
-    def __init__(self, hostendpoint, apikey, serverhost, uname, pw, db):
+    def __init__(self, hostendpoint='https://api.the-odds-api.com/v4/sports/', apikey='c7a9fea03571e4119838f7d7091cf679', serverhost='database.cl4b0hojqcsj.us-east-1.rds.amazonaws.com', uname = 'admin', pw = 'pinnacle', db = 'bets'):
         self.endpoint = hostendpoint
         self.apikey = apikey
         self.sport_key_dict = {}
@@ -21,6 +15,7 @@ class APIinterface():
     def get_inseason_sports(self):
         if len(self.sport_key_dict) != 0:
              print(list(self.sport_key_dict.values()))
+             return
         query_params = {'apiKey':self.apikey, 'all' :'false'}
         json = requests.get(self.endpoint, params = query_params).json()
         for sport in json:
@@ -31,12 +26,12 @@ class APIinterface():
         print(list(self.sport_key_dict.values()))
     
     def create_ML_table(self):
-        self.cursor.execute('CREATE TABLE IF NOT EXISTS moneyline (id VARCHAR(100), Home_Team VARCHAR(100), Home_Team_Dec_Odds FLOAT(7,2), Away_Team VARCHAR(100), Away_Team_Dec_Odds FLOAT(7,2), book  VARCHAR(50), Start_Time TIMESTAMP, Insert_Time TIMESTAMP')
+        self.cursor.execute('CREATE TABLE IF NOT EXISTS moneyline (id VARCHAR(100) PRIMARY KEY, sport_key VARCHAR(50), Home_Team VARCHAR(100), Home_Team_Dec_Odds FLOAT(7,2), Away_Team VARCHAR(100), Away_Team_Dec_Odds FLOAT(7,2), book  VARCHAR(50), Start_Time DATETIME, Insert_Time DATETIME)')
 
     def create_balance_table(self):
         self.cursor.execute('CREATE TABLE IF NOT EXISTS balance (book VARCHAR(50), amount FLOAT(7,2))')
     
-    def getMLodds(self, sport_key):
+    def uploadMLodds(self, sport_key):
         if sport_key not in list(self.sport_key_dict.values()):
             print('error -- invalid sport key passed')
             return 
@@ -49,7 +44,7 @@ class APIinterface():
         
             away_team = game['away_team']
             
-            start_time = datetime.isoformat(game['commence_time'])
+            start_time = datetime.datetime.fromisoformat(game['commence_time']) #utc start_time 
             bookies = game['bookmakers']
 
             for book in bookies:
@@ -64,9 +59,24 @@ class APIinterface():
                     if cur_team == away_team:
                         at_price = cur_price
                 
-                if datetime.utcnow() < start_time:
-                    self.cursor.execute('INSERT into moneyline VALUES (\'{}\',\'{}\',{},\'{}\',{},\'{}\',\'{}\',\'{}\')'.format(game_id,home_team,ht_price,away_team, at_price, book_name, str(start_time), str(datetime.utcnow())))
+                utc_now = datetime.now(datetime.timezone.utc)
+                if utc_now < start_time:
+                    ls_commencetime =  game['commence_time'].split('T')
+                    start_time = ls_commencetime[0] + ' ' + ls_commencetime[1][:-1]
+                    utc_now_str = utc_now.strftime('%Y-%m-%d %H:%M:%S')
+                    self.cursor.execute('INSERT into moneyline VALUES (\'{}\',\'{}\',\'{}\',{},\'{}\',{},\'{}\',\'{}\',\'{}\')'.format(game_id,sport_key,home_team,ht_price,away_team, at_price, book_name, start_time, utc_now_str))
 
+    def getMLodds(self, sport_key):
+        if sport_key not in list(self.sport_key_dict.values()):
+            print('error -- invalid sport key passed')
+            return 
+        
+        self.cursor.execute('SELECT * FROM moneyline WHERE sport_key = \'{}\' and Start_Time > \'{}\''.format(sport_key,datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')))
+
+        rows = self.cursor.fetchall()
+        for row in rows:
+            print(row[2],row[3],row[4],row[5],row[6],row[7], sep=', ')
+        
 
                  
         
