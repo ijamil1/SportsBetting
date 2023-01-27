@@ -5,11 +5,15 @@ import datetime
 
 class APIinterface():
 
-    def __init__(self, hostendpoint='https://api.the-odds-api.com/v4/sports/', apikey='c7a9fea03571e4119838f7d7091cf679', serverhost='database.cl4b0hojqcsj.us-east-1.rds.amazonaws.com', uname = 'admin', pw = 'pinnacle', db = 'bets'):
+    def __init__(self, hostendpoint='https://api.the-odds-api.com/v4/sports/'):
+        with open('credentials.txt') as f:
+            lines = f.readlines()
+        lines = lines[0]
+        credentials = lines.split(',')
         self.endpoint = hostendpoint
-        self.apikey = apikey
+        self.apikey = credentials[0]
         self.sport_key_dict = {}
-        self.connection = pymysql.connect(host = serverhost, user = uname, password = pw, database = db, autocommit=True)
+        self.connection = pymysql.connect(host = credentials[1], user = credentials[2], password = credentials[3], database = credentials[4], autocommit=True)
         self.cursor = self.connection.cursor()
     
     def get_inseason_sports(self):
