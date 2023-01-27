@@ -26,7 +26,7 @@ class APIinterface():
         print(list(self.sport_key_dict.values()))
     
     def create_ML_table(self):
-        self.cursor.execute('CREATE TABLE IF NOT EXISTS moneyline (id VARCHAR(100) PRIMARY KEY, sport_key VARCHAR(50), Home_Team VARCHAR(100), Home_Team_Dec_Odds FLOAT(7,2), Away_Team VARCHAR(100), Away_Team_Dec_Odds FLOAT(7,2), book  VARCHAR(50), Start_Time DATETIME, Insert_Time DATETIME)')
+        self.cursor.execute('CREATE TABLE IF NOT EXISTS moneyline (id VARCHAR(100), sport_key VARCHAR(50), Home_Team VARCHAR(100), Home_Team_Dec_Odds FLOAT(7,2), Away_Team VARCHAR(100), Away_Team_Dec_Odds FLOAT(7,2), book  VARCHAR(50), Start_Time DATETIME, Insert_Time DATETIME, CONSTRAINT id_book PRIMARY KEY (id,book))')
 
     def create_balance_table(self):
         self.cursor.execute('CREATE TABLE IF NOT EXISTS balance (book VARCHAR(50), amount FLOAT(7,2))')
@@ -44,7 +44,7 @@ class APIinterface():
         
             away_team = game['away_team']
             
-            start_time = datetime.datetime.fromisoformat(game['commence_time']) #utc start_time 
+            start_time = datetime.datetime.fromisoformat(game['commence_time'][:-1]+'+00:00') #utc start_time 
             bookies = game['bookmakers']
 
             for book in bookies:
@@ -59,19 +59,19 @@ class APIinterface():
                     if cur_team == away_team:
                         at_price = cur_price
                 
-                utc_now = datetime.now(datetime.timezone.utc)
+                utc_now = datetime.datetime.now(datetime.timezone.utc)
                 if utc_now < start_time:
                     ls_commencetime =  game['commence_time'].split('T')
-                    start_time = ls_commencetime[0] + ' ' + ls_commencetime[1][:-1]
+                    start_time_str = ls_commencetime[0] + ' ' + ls_commencetime[1][:-1]
                     utc_now_str = utc_now.strftime('%Y-%m-%d %H:%M:%S')
-                    self.cursor.execute('INSERT into moneyline VALUES (\'{}\',\'{}\',\'{}\',{},\'{}\',{},\'{}\',\'{}\',\'{}\')'.format(game_id,sport_key,home_team,ht_price,away_team, at_price, book_name, start_time, utc_now_str))
+                    self.cursor.execute('INSERT into moneyline VALUES (\'{}\',\'{}\',\'{}\',{},\'{}\',{},\'{}\',\'{}\',\'{}\')'.format(game_id,sport_key,home_team,ht_price,away_team, at_price, book_name, start_time_str, utc_now_str))
 
     def getMLodds(self, sport_key):
         if sport_key not in list(self.sport_key_dict.values()):
             print('error -- invalid sport key passed')
             return 
         
-        self.cursor.execute('SELECT * FROM moneyline WHERE sport_key = \'{}\' and Start_Time > \'{}\''.format(sport_key,datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')))
+        self.cursor.execute('SELECT * FROM moneyline WHERE sport_key = \'{}\' and Start_Time > \'{}\''.format(sport_key,datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')))
 
         rows = self.cursor.fetchall()
         for row in rows:
