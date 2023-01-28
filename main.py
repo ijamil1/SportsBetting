@@ -103,8 +103,25 @@ class APIinterface():
         for book in self.mybooks:
             self.cursor.execute('INSERT INTO balance VALUES (\'{}\',{})'.format(book,100.00))
     
-
-
+    def getScores(self, sportkey):
+        json = requests.get(self.endpoint+sportkey+'/scores/',params={'apiKey':self.apikey,'daysFrom':3}).json()
+        ht = ''
+        at = ''
+        ht_score = -1
+        at_score = -1
+        for game in json:
+            if game['completed']:
+                scores = game['scores']
+                for score in scores:
+                    cur_team = score['name']
+                    cur_score = score['score']
+                    if cur_team == game['home_team']:
+                        ht = cur_team
+                        ht_score = float(cur_score)
+                    elif cur_team == game['away_team']:
+                        at = cur_team
+                        at_score = float(cur_score)
+                print(ht,ht_score,at,at_score,sep=',')
                  
         
 
