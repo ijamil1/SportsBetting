@@ -32,6 +32,10 @@ class APIinterface():
     
     def create_ML_table(self):
         self.cursor.execute('CREATE TABLE IF NOT EXISTS moneyline (id VARCHAR(100), sport_key VARCHAR(50), Home_Team VARCHAR(100), Home_Team_Dec_Odds FLOAT(7,2), Away_Team VARCHAR(100), Away_Team_Dec_Odds FLOAT(7,2), book  VARCHAR(50), Start_Time DATETIME, Insert_Time DATETIME, CONSTRAINT id_book_time PRIMARY KEY (id,book, Insert_Time))')
+    
+    def create_spreads_table(self):
+        self.cursor.execute('CREATE TABLE IF NOT EXISTS spreads (id VARCHAR(100), sport_key VARCHAR(50), Home_Team VARCHAR(100), Home_Team_Spread FLOAT(7,2), Away_Team VARCHAR(100), book  VARCHAR(50), Start_Time DATETIME, Insert_Time DATETIME, CONSTRAINT id_book_time PRIMARY KEY (id,book, Insert_Time))')
+
 
     def create_balance_table(self):
         self.cursor.execute('CREATE TABLE IF NOT EXISTS balance (book VARCHAR(50), amount FLOAT(7,2))')
@@ -84,6 +88,46 @@ class APIinterface():
         for row in rows:
             print(row[2],row[3],row[4],row[5],row[6],row[7], sep=', ')
         
+    def uploadSpreads(self, sport_key):
+        if sport_key not in list(self.sport_key_dict.values()):
+            print('error -- invalid sport key passed')
+            return 
+        
+        json = requests.get(self.endpoint+sport_key+'/odds/', params = {'apiKey':self.apikey,'regions':'us','markets':'spreads'}).json()
+
+        for game in json:
+            id = game['id']
+            start_time = datetime.datetime.fromisoformat(game['commence_time'][:-1]+'+00:00')
+            ht = game['home_team']
+            at = game['away_team']
+            
+            for bookie in game['bookmakers']:
+                book = bookie['title']
+                if book not in self.mybooks:
+                    continue
+                outcomes = bookie['markets'][0]['outcomes']
+                for outcome in outcomes:
+                    if outcome['name']==at:
+                        continue
+                    cur_spread = outcome['point']
+                    utc_now = datetime.datetime.now(datetime.timezone.utc)
+                    if utc_now < start_time:
+                        ls_commencetime =  game['commence_time'].split('T')
+                    start_time_str = ls_commencetime[0] + ' ' + ls_commencetime[1][:-1]
+                    utc_now_str = utc_now.strftime('%Y-%m-%d %H:%M:%S')
+                    self.cursor.execute('INSERT into spreads VALUES (\'{}\',\'{}\',\'{}\',{},\'{}\',\'{}\',\'{}\',\'{}\')'.format(id,sport_key,ht,cur_spread,at,book, start_time_str, utc_now_str)) 
+
+    def  getSpreads(self, sport_key):
+        if sport_key not in list(self.sport_key_dict.values()):
+            print('error -- invalid sport key passed')
+            return 
+        
+        self.cursor.execute('SELECT * FROM spreads WHERE sport_key = \'{}\' and Start_Time > \'{}\''.format(sport_key,datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')))
+
+        rows = self.cursor.fetchall()
+        for row in rows:
+            print(row[2],row[3],row[4],row[5],row[6], sep=', ')
+
 
     def getBalance(self):
         self.cursor.execute('SELECT * FROM balance')
