@@ -1,0 +1,37 @@
+-create instance of API class
+    -connects to AWS hosted MySQL DB and has access to an odds API
+
+- multiple tables can be / are created 
+    -scores table => primary key is id and it simply holds scores
+        -uploadScores(self,sportkey) uploads scores for the specified sport for games finished in the last 3 days that we have bet on
+        This function also updates balances for the books where we win the bets
+
+    -balance table => 2 features are book and balance at that book 
+        -getBalance(self,  book=None) prints the balances at all books if the parameter is none; otherwise,
+        it returns the balance at the specific book passed as the parameter 
+        -initializeBalance(self) adds $100 to each of the books' balances
+        -updateBalance(self,book,amount) adds the parameter amount's numerical value to the book specified
+
+    -ML table => holds information for moneyline odds being offered
+        -primary key for the table is game id, book, and the insertion time into the table
+        -uploadMLodds(self,sportkey) takes in the key for a sport and uploads into the table the moneyline odds
+        -getMLodds(self, sportkey) takes in the key for a sport and prints the moneyline odds in the table for that sport's games that haven't happened yet
+        -delete_from_tables(self) removes all rows from this table whose scores are logged in the score table
+
+    -spreads table => hold information for spread lines being offered 
+        -primary key for the table is game id, book, and the insertion time into the table
+        -uploadSpreads(self,sportkey) uploads into the table the spread lines being offered for games of that sport
+        -getSpreads(self,sportkey)  is analagous to getMLodds
+        -delete_from_tables(self) removes all rows from this table whose scores are logged in the score table
+    
+    -spread_bets table => primary key is id, book, and team bet on 
+        -hold information about the bet I made on a spread
+            -includes game id, book the bet is at, the team bet on, the price and spread offered, and the amt bet 
+        -uploadSpreadBets upload bets into this table
+            - calls getBalance to check that the bet can be made and if so calls updateBalance function to deduct the bet from the correct book
+    
+    -ml_bets table => primary key is id, book, and team bet on
+        -holds information about a moneyline bet I made
+            - includes game id, team bet on, book bet at, amount bet, and the odds
+        -uploadMLbets uploads bets into this table
+            - calls getBalance to check that the bet can be made and if so calls updateBalance function to deduct the bet from the correct book
